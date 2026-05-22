@@ -19,8 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ticket_code'])) {
 
     try {
         if ($type == 'Event Entry') {
-            if (!hasPermission('validate_entry')) throw new Exception("No permission for entry tickets.");
-            
             $stmt = $pdo->prepare("SELECT t.*, e.title as item_name FROM tickets t JOIN events e ON t.event_id = e.id WHERE t.ticket_code = ?");
             $stmt->execute([$code]);
             $ticket = $stmt->fetch();
@@ -38,8 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ticket_code'])) {
             exit();
 
         } elseif ($type == 'Ride Ticket') {
-            if (!hasPermission('validate_rides')) throw new Exception("No permission for ride tickets.");
-            
             $stmt = $pdo->prepare("SELECT rt.*, s.name as item_name FROM ride_tickets rt JOIN swings s ON rt.swing_id = s.id WHERE rt.ticket_code = ?");
             $stmt->execute([$code]);
             $ticket = $stmt->fetch();
@@ -57,8 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ticket_code'])) {
             exit();
 
         } elseif ($type == 'Special Pass') {
-            if (!hasPermission('validate_rides') && !hasPermission('validate_entry')) throw new Exception("No permission for passes.");
-            
             $stmt = $pdo->prepare("SELECT * FROM passes WHERE pass_code = ?");
             $stmt->execute([$code]);
             $pass = $stmt->fetch();

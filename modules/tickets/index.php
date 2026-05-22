@@ -1,6 +1,12 @@
 <?php
 require_once '../../config/config.php';
 requireLogin();
+requireAnyPermission(['book_tickets', 'view_reports']);
+
+if (hasRole(['ride operator'])) {
+    header("Location: " . BASE_URL . "index.php?error=unauthorized");
+    exit;
+}
 
 $pageTitle = "Ticket History";
 

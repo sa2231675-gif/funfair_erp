@@ -1,8 +1,8 @@
 <?php
 require_once '../../config/config.php';
 
-if (!isLoggedIn()) {
-    echo json_encode(['success' => false, 'error' => 'Not logged in.']);
+if (!isLoggedIn() || !hasRole(['superadmin', 'admin', 'cashier'])) {
+    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit();
 }
 

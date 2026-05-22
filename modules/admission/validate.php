@@ -2,45 +2,29 @@
 require_once '../../config/config.php';
 requireLogin();
 
-// Note: Ensure user has at least one validation permission
-if (!hasPermission('validate_entry') && !hasPermission('validate_rides')) {
-    die("<h2>Unauthorized Access</h2>");
-}
+requireAnyPermission(['validate_entry', 'validate_rides']);
 
 $pageTitle = "Universal Validation Scanner";
 $message = '';
 $alertType = 'info';
 $ticket_info = null;
 
-// Note: Validation logic moved to ajax_validate.php for smoother UX without page refresh.
-
 // Fetch swings for pass validation dropdown
-$swings = [];
-// Fetch pending tickets queue (recent un-used tickets created today)
-$pending_queue = [];
-$stmt_evt = $pdo->query("SELECT ticket_code, created_at, 'Event/Entry' as type FROM tickets WHERE status = 'paid' AND DATE(created_at) = CURDATE()");
-$pending_queue = array_merge($pending_queue, $stmt_evt->fetchAll());
+$swings = $pdo->query("SELECT id, name FROM swings WHERE status = 'active'")->fetchAll();
 
-$stmt_rid = $pdo->query("SELECT ticket_code, created_at, 'Ride Ticket' as type FROM ride_tickets WHERE status = 'paid' AND DATE(created_at) = CURDATE()");
-$pending_queue = array_merge($pending_queue, $stmt_rid->fetchAll());
+// Fetch pending queues (recent un-used items) without date limits/permission constraints
+$general_entry_queue = $pdo->query("SELECT ticket_code, created_at FROM tickets WHERE status = 'paid' AND ticket_code LIKE 'ENT-%' ORDER BY created_at DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
 
-$stmt_pass = $pdo->query("SELECT pass_code as ticket_code, created_at, 'Special Pass' as type FROM passes WHERE status = 'pending' AND DATE(created_at) = CURDATE()");
-$pending_queue = array_merge($pending_queue, $stmt_pass->fetchAll(PDO::FETCH_ASSOC));
+$event_tickets_queue = $pdo->query("SELECT ticket_code, created_at FROM tickets WHERE status = 'paid' AND ticket_code LIKE 'EVT-%' ORDER BY created_at DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
 
-usort($pending_queue, function($a, $b) {
-    return strtotime($b['created_at']) - strtotime($a['created_at']); // Newest first
-});
-$pending_queue = array_slice($pending_queue, 0, 10); // Show up to 10 latest pending
+$ride_tickets_queue = $pdo->query("SELECT ticket_code, created_at FROM ride_tickets WHERE status = 'paid' ORDER BY created_at DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
 
-if (hasPermission('validate_rides')) {
-    $stmt = $pdo->query("SELECT id, name FROM swings WHERE status = 'active'");
-    $swings = $stmt->fetchAll();
-}
+$special_passes_queue = $pdo->query("SELECT pass_code as ticket_code, created_at FROM passes WHERE status = 'pending' ORDER BY created_at DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
+
 include '../../includes/header.php';
 ?>
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 
 <div class="content-wrapper">
     <section class="content-header">
@@ -56,7 +40,6 @@ include '../../includes/header.php';
                 <div class="card card-dark card-outline card-success">
                     <div class="card-body">
                         <form id="validation-form" class="mb-4">
-                            <?php if (hasPermission('validate_rides')): ?>
                             <div class="form-group">
                                 <label>If testing a Special Pass, select your station (Ride):</label>
                                 <select name="swing_id" id="swing_id" class="form-control mb-3">
@@ -66,7 +49,6 @@ include '../../includes/header.php';
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <?php endif; ?>
                             
                             <div id="qr-reader" style="width:100%; margin-bottom: 20px; border-radius: 10px; overflow: hidden; display: none;"></div>
                             
@@ -93,36 +75,141 @@ include '../../includes/header.php';
                     </div>
                 </div>
                 
-                <div class="card card-dark mt-4">
-                    <div class="card-header border-0">
-                        <h3 class="card-title text-neon-info"><i class="fas fa-list mt-1 mr-1"></i> Pending Validation Queue</h3>
+                <div class="card card-dark card-tabs mt-4">
+                    <div class="card-header p-0 pt-1 border-bottom-0">
+                        <ul class="nav nav-tabs" id="validation-tabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="general-entry-tab" data-toggle="pill" href="#general-entry" role="tab" aria-controls="general-entry" aria-selected="true">
+                                    <i class="fas fa-sign-in-alt text-neon-success mr-1"></i> Entry (<span id="count-general-entry"><?php echo count($general_entry_queue); ?></span>)
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="event-tickets-tab" data-toggle="pill" href="#event-tickets" role="tab" aria-controls="event-tickets" aria-selected="false">
+                                    <i class="fas fa-calendar-day text-neon-info mr-1"></i> Events (<span id="count-event-tickets"><?php echo count($event_tickets_queue); ?></span>)
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="ride-tickets-tab" data-toggle="pill" href="#ride-tickets" role="tab" aria-controls="ride-tickets" aria-selected="false">
+                                    <i class="fas fa-ticket-alt text-neon-warning mr-1"></i> Rides (<span id="count-ride-tickets"><?php echo count($ride_tickets_queue); ?></span>)
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="special-passes-tab" data-toggle="pill" href="#special-passes" role="tab" aria-controls="special-passes" aria-selected="false">
+                                    <i class="fas fa-id-card text-neon-danger mr-1"></i> Passes (<span id="count-special-passes"><?php echo count($special_passes_queue); ?></span>)
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                     <div class="card-body p-0">
-                        <table class="table table-dark-custom m-0">
-                            <thead>
-                                <tr>
-                                    <th>Code</th>
-                                    <th>Type</th>
-                                    <th>Time</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($pending_queue as $q): ?>
-                                <tr id="row-<?php echo $q['ticket_code']; ?>">
-                                    <td><strong class="text-glow"><?php echo $q['ticket_code']; ?></strong></td>
-                                    <td><span class="badge badge-secondary"><?php echo $q['type']; ?></span></td>
-                                    <td><?php echo date('H:i:s', strtotime($q['created_at'])); ?></td>
-                                    <td>
-                                        <button type="button" onclick="validateTicket('<?php echo $q['ticket_code']; ?>')" class="btn btn-xs btn-outline-success"><i class="fas fa-check"></i> Validate</button>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                                <?php if (empty($pending_queue)): ?>
-                                <tr><td colspan="4" class="text-center text-muted p-4"><i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>All caught up! The queue is empty.</td></tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                        <div class="tab-content" id="validation-tabs-content">
+                            <!-- General Entry Tab -->
+                            <div class="tab-pane fade show active" id="general-entry" role="tabpanel" aria-labelledby="general-entry-tab">
+                                <table class="table table-dark-custom m-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Code</th>
+                                            <th>Time</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="body-general-entry">
+                                        <?php foreach ($general_entry_queue as $q): ?>
+                                        <tr id="row-<?php echo $q['ticket_code']; ?>" data-category="general-entry">
+                                            <td><strong class="text-glow"><?php echo $q['ticket_code']; ?></strong></td>
+                                            <td><?php echo date('H:i:s', strtotime($q['created_at'])); ?></td>
+                                            <td>
+                                                <button type="button" onclick="validateTicket('<?php echo $q['ticket_code']; ?>')" class="btn btn-xs btn-outline-success"><i class="fas fa-check"></i> Validate</button>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                        <?php if (empty($general_entry_queue)): ?>
+                                        <tr class="no-data"><td colspan="3" class="text-center text-muted p-4"><i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>No pending entry tickets.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Event Tickets Tab -->
+                            <div class="tab-pane fade" id="event-tickets" role="tabpanel" aria-labelledby="event-tickets-tab">
+                                <table class="table table-dark-custom m-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Code</th>
+                                            <th>Time</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="body-event-tickets">
+                                        <?php foreach ($event_tickets_queue as $q): ?>
+                                        <tr id="row-<?php echo $q['ticket_code']; ?>" data-category="event-tickets">
+                                            <td><strong class="text-glow"><?php echo $q['ticket_code']; ?></strong></td>
+                                            <td><?php echo date('H:i:s', strtotime($q['created_at'])); ?></td>
+                                            <td>
+                                                <button type="button" onclick="validateTicket('<?php echo $q['ticket_code']; ?>')" class="btn btn-xs btn-outline-success"><i class="fas fa-check"></i> Validate</button>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                        <?php if (empty($event_tickets_queue)): ?>
+                                        <tr class="no-data"><td colspan="3" class="text-center text-muted p-4"><i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>No pending event tickets.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Ride Tickets Tab -->
+                            <div class="tab-pane fade" id="ride-tickets" role="tabpanel" aria-labelledby="ride-tickets-tab">
+                                <table class="table table-dark-custom m-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Code</th>
+                                            <th>Time</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="body-ride-tickets">
+                                        <?php foreach ($ride_tickets_queue as $q): ?>
+                                        <tr id="row-<?php echo $q['ticket_code']; ?>" data-category="ride-tickets">
+                                            <td><strong class="text-glow"><?php echo $q['ticket_code']; ?></strong></td>
+                                            <td><?php echo date('H:i:s', strtotime($q['created_at'])); ?></td>
+                                            <td>
+                                                <button type="button" onclick="validateTicket('<?php echo $q['ticket_code']; ?>')" class="btn btn-xs btn-outline-success"><i class="fas fa-check"></i> Validate</button>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                        <?php if (empty($ride_tickets_queue)): ?>
+                                        <tr class="no-data"><td colspan="3" class="text-center text-muted p-4"><i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>No pending ride tickets.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Special Passes Tab -->
+                            <div class="tab-pane fade" id="special-passes" role="tabpanel" aria-labelledby="special-passes-tab">
+                                <table class="table table-dark-custom m-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Code</th>
+                                            <th>Time</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="body-special-passes">
+                                        <?php foreach ($special_passes_queue as $q): ?>
+                                        <tr id="row-<?php echo $q['ticket_code']; ?>" data-category="special-passes">
+                                            <td><strong class="text-glow"><?php echo $q['ticket_code']; ?></strong></td>
+                                            <td><?php echo date('H:i:s', strtotime($q['created_at'])); ?></td>
+                                            <td>
+                                                <button type="button" onclick="validateTicket('<?php echo $q['ticket_code']; ?>')" class="btn btn-xs btn-outline-success"><i class="fas fa-check"></i> Validate</button>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                        <?php if (empty($special_passes_queue)): ?>
+                                        <tr class="no-data"><td colspan="3" class="text-center text-muted p-4"><i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>No pending special passes.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -131,10 +218,8 @@ include '../../includes/header.php';
 </div>
 
 <?php include '../../includes/footer.php'; ?>
-<script src="<?php echo BASE_URL; ?>assets/js/html5-qrcode.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const html5QrCode = new Html5Qrcode("qr-reader");
     const startBtn = document.getElementById('start-camera-btn');
     const syncBtn = document.getElementById('sync-offline-btn');
     const qrReaderDiv = document.getElementById('qr-reader');
@@ -142,42 +227,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const valForm = document.getElementById('validation-form');
     const offlineBadge = document.getElementById('offline-badge');
     let isScanning = false;
+    let html5QrCode = null;
 
-    // Monitor Online/Offline Status
-    function updateOnlineStatus() {
-        if (navigator.onLine) {
-            offlineBadge.style.display = 'none';
-        } else {
-            offlineBadge.style.display = 'block';
-        }
-    }
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-    updateOnlineStatus();
-
-    valForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        validateTicket(inputCode.value);
-    });
-
-    syncBtn.addEventListener('click', function() {
-        syncBtn.disabled = true;
-        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
-        
-        fetch('fetch_tickets.php')
-            .then(res => res.json())
-            .then(data => {
-                localStorage.setItem('offline_tickets', JSON.stringify(data));
-                localStorage.setItem('last_sync', new Date().toLocaleString());
-                Swal.fire('Synced!', `Downloaded ${data.length} tickets for offline use.`, 'success');
-            })
-            .catch(err => Swal.fire('Error', 'Failed to sync. Are you online?', 'error'))
-            .finally(() => {
-                syncBtn.disabled = false;
-                syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync Offline';
-            });
-    });
-
+    // Register validateTicket immediately so it works regardless of camera initialization status
     window.validateTicket = function(code) {
         if (!code) return;
         const swingId = document.getElementById('swing_id') ? document.getElementById('swing_id').value : '';
@@ -195,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
             didOpen: () => { Swal.showLoading(); }
         });
 
-        fetch('ajax_validate.php', {
+        fetch('<?php echo BASE_URL; ?>modules/admission/ajax_validate.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: 'ticket_code=' + encodeURIComponent(code) + '&swing_id=' + swingId
@@ -212,10 +264,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 const row = document.getElementById('row-' + code);
-                if (row) row.remove();
+                if (row) {
+                    const category = row.getAttribute('data-category');
+                    row.remove();
+                    if (category) {
+                        const countSpan = document.getElementById('count-' + category);
+                        if (countSpan) {
+                            let currentCount = parseInt(countSpan.textContent) || 0;
+                            if (currentCount > 0) {
+                                countSpan.textContent = currentCount - 1;
+                            }
+                            if (currentCount - 1 === 0) {
+                                const tbody = document.getElementById('body-' + category);
+                                if (tbody) {
+                                    let labelText = "items";
+                                    if (category === 'general-entry') labelText = "entry tickets";
+                                    else if (category === 'event-tickets') labelText = "event tickets";
+                                    else if (category === 'ride-tickets') labelText = "ride tickets";
+                                    else if (category === 'special-passes') labelText = "special passes";
+                                    
+                                    tbody.innerHTML = `<tr class="no-data"><td colspan="3" class="text-center text-muted p-4"><i class="fas fa-check-circle fa-2x mb-2 text-success"></i><br>No pending ${labelText}.</td></tr>`;
+                                }
+                            }
+                        }
+                    }
+                }
                 
-                inputCode.value = '';
-                inputCode.focus();
+                if (inputCode) {
+                    inputCode.value = '';
+                    inputCode.focus();
+                }
             } else {
                 Swal.fire('Error', data.error, 'error');
             }
@@ -242,48 +320,180 @@ document.addEventListener('DOMContentLoaded', function() {
                 text: 'Ticket is valid. Mark as used locally.',
                 footer: 'Sync when online to update server.'
             });
-            inputCode.value = '';
+            if (inputCode) {
+                inputCode.value = '';
+            }
         } else {
             Swal.fire('Not Found', 'Ticket code not in local database. Try syncing when online.', 'error');
         }
     }
 
-    startBtn.addEventListener('click', function() {
+    // Monitor Online/Offline Status (Prevent duplicate handlers)
+    if (window.funfairOnlineHandler) {
+        window.removeEventListener('online', window.funfairOnlineHandler);
+    }
+    window.funfairOnlineHandler = function() {
+        const badge = document.getElementById('offline-badge');
+        if (badge) badge.style.display = 'none';
+    };
+    window.addEventListener('online', window.funfairOnlineHandler);
+
+    if (window.funfairOfflineHandler) {
+        window.removeEventListener('offline', window.funfairOfflineHandler);
+    }
+    window.funfairOfflineHandler = function() {
+        const badge = document.getElementById('offline-badge');
+        if (badge) badge.style.display = 'block';
+    };
+    window.addEventListener('offline', window.funfairOfflineHandler);
+    
+    // Initial check
+    if (navigator.onLine) {
+        if (offlineBadge) offlineBadge.style.display = 'none';
+    } else {
+        if (offlineBadge) offlineBadge.style.display = 'block';
+    }
+
+    if (valForm) {
+        valForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (inputCode) {
+                validateTicket(inputCode.value);
+            }
+        });
+    }
+
+    if (syncBtn) {
+        syncBtn.addEventListener('click', function() {
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            
+            fetch('<?php echo BASE_URL; ?>modules/admission/fetch_tickets.php')
+                .then(res => res.json())
+                .then(data => {
+                    localStorage.setItem('offline_tickets', JSON.stringify(data));
+                    localStorage.setItem('last_sync', new Date().toLocaleString());
+                    Swal.fire('Synced!', `Downloaded ${data.length} tickets for offline use.`, 'success');
+                })
+                .catch(err => Swal.fire('Error', 'Failed to sync. Are you online?', 'error'))
+                .finally(() => {
+                    syncBtn.disabled = false;
+                    syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync Offline';
+                });
+        });
+    }
+
+    // Camera Scanner Setup
+    function initCameraScanner() {
+        if (typeof Html5Qrcode === 'undefined') return;
+        try {
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("qr-reader");
+            }
+        } catch (e) {
+            console.error("Failed to instantiate Html5Qrcode:", e);
+        }
+    }
+
+    // Autoload the Html5Qrcode library immediately if it is not present globally
+    if (typeof Html5Qrcode === 'undefined') {
+        const script = document.createElement('script');
+        script.src = '<?php echo BASE_URL; ?>assets/js/html5-qrcode.min.js';
+        script.onload = function() {
+            initCameraScanner();
+        };
+        document.head.appendChild(script);
+    } else {
+        setTimeout(initCameraScanner, 50);
+    }
+
+    if (startBtn) {
+        startBtn.addEventListener('click', function() {
+            if (typeof Html5Qrcode === 'undefined') {
+                Swal.fire({
+                    title: 'Loading Camera Library...',
+                    text: 'Please wait a moment while the scanner library loads.',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+                const script = document.createElement('script');
+                script.src = '<?php echo BASE_URL; ?>assets/js/html5-qrcode.min.js';
+                script.onload = function() {
+                    Swal.close();
+                    initCameraScanner();
+                    toggleCamera();
+                };
+                script.onerror = function() {
+                    Swal.fire('Error', 'Failed to load camera scanner library. Please check your connection.', 'error');
+                };
+                document.head.appendChild(script);
+            } else {
+                if (!html5QrCode) {
+                    initCameraScanner();
+                }
+                toggleCamera();
+            }
+        });
+    }
+
+    function toggleCamera() {
+        if (!html5QrCode) {
+            Swal.fire('Error', 'Camera scanner not initialized.', 'error');
+            return;
+        }
+
         if (isScanning) {
             html5QrCode.stop().then(() => {
-                qrReaderDiv.style.display = 'none';
+                if (qrReaderDiv) qrReaderDiv.style.display = 'none';
                 startBtn.innerHTML = '<i class="fas fa-camera"></i> Camera';
                 isScanning = false;
             });
         } else {
-            qrReaderDiv.style.display = 'block';
+            if (qrReaderDiv) qrReaderDiv.style.display = 'block';
             startBtn.innerHTML = '<i class="fas fa-times"></i> Stop';
             isScanning = true;
             
-            // Modern initialization
             const config = { fps: 15, qrbox: { width: 250, height: 250 } };
             
             html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
                 validateTicket(decodedText);
-                // Optionally stop after one scan or continue
-                // html5QrCode.stop()...
             }).catch(err => {
                 console.error(err);
-                // Fallback for some browsers/devices
                 Html5Qrcode.getCameras().then(cameras => {
                     if (cameras && cameras.length > 0) {
                         html5QrCode.start(cameras[cameras.length-1].id, config, (decodedText) => {
                             validateTicket(decodedText);
                         });
                     } else {
-                        alert("Camera not found or permission denied.");
-                        qrReaderDiv.style.display = 'none';
+                        Swal.fire('Camera Error', 'Camera not found or permission denied.', 'error');
+                        if (qrReaderDiv) qrReaderDiv.style.display = 'none';
                         isScanning = false;
                         startBtn.innerHTML = '<i class="fas fa-camera"></i> Camera';
                     }
+                }).catch(e => {
+                    Swal.fire('Camera Error', 'Could not access camera list.', 'error');
+                    if (qrReaderDiv) qrReaderDiv.style.display = 'none';
+                    isScanning = false;
+                    startBtn.innerHTML = '<i class="fas fa-camera"></i> Camera';
                 });
             });
         }
-    });
+    }
+
+    // SPA Navigation Cleanup: stop camera when user navigates away
+    const cleanupInterval = setInterval(function() {
+        if (!document.getElementById('qr-reader')) {
+            clearInterval(cleanupInterval);
+            if (html5QrCode) {
+                if (isScanning) {
+                    html5QrCode.stop().then(() => {
+                        console.log("Scanner stopped successfully on navigation.");
+                    }).catch(err => {
+                        console.error("Error stopping scanner on navigation:", err);
+                    });
+                }
+            }
+        }
+    }, 500);
 });
 </script>

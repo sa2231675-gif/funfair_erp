@@ -2,13 +2,19 @@
 require_once '../../config/config.php';
 requireLogin();
 
+// Only superadmin, cashier, and eventmanager have access to this page
+if (!hasRole(['superadmin', 'cashier', 'eventmanager'])) {
+    header("Location: " . BASE_URL . "index.php?error=unauthorized");
+    exit;
+}
+
 $pageTitle = "Shift Closing Report";
 $user_id = $_SESSION['user_id'];
 $date = $_GET['date'] ?? date('Y-m-d');
 $selected_user = isset($_GET['user_id']) ? $_GET['user_id'] : $user_id;
 
-// Only superadmin/admin can view others' reports
-if ($selected_user != $user_id && !hasRole(['superadmin', 'admin'])) {
+// Only superadmin/eventmanager can view others' reports
+if ($selected_user != $user_id && !hasRole(['superadmin', 'eventmanager'])) {
     $selected_user = $user_id;
 }
 
@@ -48,7 +54,7 @@ $total_passes = $stmt->fetchColumn();
 
 // Fetch users for admin dropdown
 $users = [];
-if (hasRole(['superadmin', 'admin'])) {
+if (hasRole(['superadmin', 'eventmanager'])) {
     $users = $pdo->query("SELECT id, full_name FROM users WHERE status = 'active'")->fetchAll();
 }
 
@@ -75,7 +81,7 @@ include '../../includes/header.php';
                                 <label>Date</label>
                                 <input type="date" name="date" class="form-control" value="<?php echo htmlspecialchars($date); ?>">
                             </div>
-                            <?php if (hasRole(['superadmin', 'admin'])): ?>
+                            <?php if (hasRole(['superadmin', 'eventmanager'])): ?>
                             <div class="form-group">
                                 <label>Select Cashier</label>
                                 <select name="user_id" class="form-control">

@@ -46,6 +46,7 @@ include 'includes/header.php';
         <div class="container-fluid px-4">
             <!-- Small boxes (Stat box) -->
             <div class="row">
+                <?php if ((hasPermission('book_tickets') || hasPermission('view_reports')) && !hasRole(['ride operator'])): ?>
                 <div class="col-lg-4 col-6 mb-4">
                     <a href="modules/tickets/index.php" class="stat-box-dark stat-glow-primary">
                         <div class="inner">
@@ -57,6 +58,8 @@ include 'includes/header.php';
                         </div>
                     </a>
                 </div>
+                <?php endif; ?>
+
                 <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin', 'event manager'])): ?>
                 <div class="col-lg-4 col-6 mb-4">
                     <a href="modules/reports/revenue.php" class="stat-box-dark stat-glow-success">
@@ -72,6 +75,7 @@ include 'includes/header.php';
                 </div>
                 <?php endif; ?>
                 
+                <?php if (hasPermission('manage_users') || hasPermission('view_reports')): ?>
                 <div class="col-lg-4 col-6 mb-4">
                     <a href="modules/users/index.php" class="stat-box-dark stat-glow-warning">
                         <div class="inner">
@@ -83,6 +87,9 @@ include 'includes/header.php';
                         </div>
                     </a>
                 </div>
+                <?php endif; ?>
+
+                <?php if (hasPermission('manage_events') || hasPermission('view_events') || hasPermission('view_reports')): ?>
                 <div class="col-lg-4 col-6 mb-4">
                     <a href="<?php echo hasPermission('manage_events') ? 'modules/events/index.php' : 'modules/events/list.php'; ?>" class="stat-box-dark stat-glow-danger">
                         <div class="inner">
@@ -94,7 +101,10 @@ include 'includes/header.php';
                         </div>
                     </a>
                 </div>
-                <!-- Swings Tile for everyone (View only for students) -->
+                <?php endif; ?>
+
+                <!-- Swings Tile for everyone with access to swings/rides -->
+                <?php if (hasPermission('manage_swings') || hasPermission('view_swings') || hasPermission('validate_rides') || hasPermission('view_reports')): ?>
                 <div class="col-lg-4 col-6 mb-4">
                     <a href="modules/rides/index.php" class="stat-box-dark stat-glow-warning">
                         <div class="inner">
@@ -106,7 +116,9 @@ include 'includes/header.php';
                         </div>
                     </a>
                 </div>
-                <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin'])): ?>
+                <?php endif; ?>
+
+                <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin', 'cashier'])): ?>
                 <div class="col-lg-4 col-6 mb-4">
                     <a href="modules/expenses/index.php" class="stat-box-dark stat-glow-warning">
                         <div class="inner">
@@ -118,6 +130,9 @@ include 'includes/header.php';
                         </div>
                     </a>
                 </div>
+                <?php endif; ?>
+
+                <?php if (hasRole(['superadmin', 'admin']) || hasPermission('view_reports')): ?>
                 <div class="col-lg-4 col-6 mb-4">
                     <a href="modules/passes/index.php" class="stat-box-dark stat-glow-warning">
                         <div class="inner">
@@ -129,6 +144,9 @@ include 'includes/header.php';
                         </div>
                     </a>
                 </div>
+                <?php endif; ?>
+
+                <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin'])): ?>
                 <div class="col-lg-4 col-6 mb-4">
                     <a href="modules/hr/index.php" class="stat-box-dark stat-glow-primary">
                         <div class="inner">
@@ -143,7 +161,7 @@ include 'includes/header.php';
                 <?php endif; ?>
             </div>
 
-                <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin', 'event manager'])): ?>
+            <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin', 'event manager'])): ?>
             <div class="row mt-4">
                 <div class="col-md-6 mb-4">
                     <div class="card-dark h-100 p-2">
@@ -168,8 +186,16 @@ include 'includes/header.php';
             </div>
             <?php endif; ?>
 
+            <?php
+            $showEventTicketsChart = (hasPermission('book_tickets') || hasPermission('view_reports')) && !hasRole(['ride operator']);
+            $showTopRidesChart = (hasPermission('validate_rides') || hasPermission('manage_swings') || hasPermission('view_swings') || hasPermission('view_reports')) && !hasRole(['user/student']);
+            $chartsCount = ($showEventTicketsChart ? 1 : 0) + ($showTopRidesChart ? 1 : 0);
+            $chartColClass = ($chartsCount === 1) ? 'col-md-12' : 'col-md-6';
+            ?>
+            <?php if ($chartsCount > 0): ?>
             <div class="row mt-4">
-                <div class="col-md-6 mb-4">
+                <?php if ($showEventTicketsChart): ?>
+                <div class="<?php echo $chartColClass; ?> mb-4">
                     <div class="card-dark h-100 p-2">
                         <div class="card-header border-0">
                             <h3 class="card-title text-glow"><i class="fas fa-calendar-alt mr-2 text-neon-info"></i> Tickets Sold per Event</h3>
@@ -179,7 +205,9 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 mb-4">
+                <?php endif; ?>
+                <?php if ($showTopRidesChart): ?>
+                <div class="<?php echo $chartColClass; ?> mb-4">
                     <div class="card-dark h-100 p-2">
                         <div class="card-header border-0">
                             <h3 class="card-title text-glow"><i class="fas fa-horse mr-2 text-neon-warning"></i> Top 5 Used Rides</h3>
@@ -189,10 +217,20 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
+            <?php endif; ?>
 
+            <?php
+            $showRecentTickets = (hasPermission('book_tickets') || hasPermission('view_reports')) && !hasRole(['ride operator']);
+            $showRecentRideUsage = (hasPermission('validate_rides') || hasPermission('manage_swings') || hasPermission('view_swings') || hasPermission('view_reports')) && !hasRole(['user/student']);
+            $recentCount = ($showRecentTickets ? 1 : 0) + ($showRecentRideUsage ? 1 : 0);
+            $recentColClass = ($recentCount === 1) ? 'col-md-12' : 'col-md-6';
+            ?>
+            <?php if ($recentCount > 0): ?>
             <div class="row mt-2">
-                <div class="col-md-6 mb-4">
+                <?php if ($showRecentTickets): ?>
+                <div class="<?php echo $recentColClass; ?> mb-4">
                     <div class="card-dark h-100 p-2">
                         <div class="card-header border-0">
                             <h3 class="card-title text-glow"><i class="fas fa-ticket-alt mr-2 text-neon-info"></i> Recent Event Tickets</h3>
@@ -233,7 +271,9 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 mb-4">
+                <?php endif; ?>
+                <?php if ($showRecentRideUsage): ?>
+                <div class="<?php echo $recentColClass; ?> mb-4">
                      <div class="card-dark h-100 p-2">
                         <div class="card-header border-0">
                             <h3 class="card-title text-glow"><i class="fas fa-horse mr-2 text-neon-warning"></i> Recent Ride Usage</h3>
@@ -272,7 +312,9 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

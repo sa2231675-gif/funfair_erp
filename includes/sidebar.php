@@ -64,7 +64,7 @@
                 </li>
                 <?php endif; ?>
 
-                <?php if (hasPermission('manage_events') || hasPermission('book_tickets') || hasRole(['user/student'])): ?>
+                <?php if (hasPermission('manage_events') || (hasPermission('book_tickets') && !hasRole(['ride operator'])) || hasRole(['user/student'])): ?>
                 <li class="nav-header text-muted">EVENT TICKETING</li>
                 <?php if (hasPermission('manage_events')): ?>
                 <li class="nav-item">
@@ -82,7 +82,7 @@
                     </a>
                 </li>
                 <?php endif; ?>
-                <?php if (hasPermission('book_tickets')): ?>
+                <?php if (hasPermission('book_tickets') && !hasRole(['ride operator'])): ?>
                 <li class="nav-item">
                     <a href="<?php echo BASE_URL; ?>modules/admission/buy.php" class="nav-link">
                         <i class="nav-icon fas fa-door-open text-neon-success"></i>
@@ -108,24 +108,30 @@
                     </a>
                 </li>
                 <?php if (!hasRole(['user/student'])): ?>
+                <?php if (!hasRole(['ride operator'])): ?>
                 <li class="nav-item">
                     <a href="<?php echo BASE_URL; ?>modules/rides/booking.php" class="nav-link">
                         <i class="nav-icon fas fa-vr-cardboard text-neon-primary"></i>
                         <p>Ride Tickets</p>
                     </a>
                 </li>
+                <?php endif; ?>
+                <?php if (hasPermission('book_tickets') && !hasRole(['ride operator'])): ?>
                 <li class="nav-item">
                     <a href="<?php echo BASE_URL; ?>modules/passes/buy.php" class="nav-link">
                         <i class="nav-icon fas fa-cart-plus text-neon-warning"></i>
                         <p>Sell Special Pass</p>
                     </a>
                 </li>
+                <?php endif; ?>
+                <?php if (hasPermission('view_reports')): ?>
                 <li class="nav-item">
                     <a href="<?php echo BASE_URL; ?>modules/passes/index.php" class="nav-link">
                         <i class="nav-icon fas fa-id-card text-neon-warning"></i>
                         <p>Special Passes List</p>
                     </a>
                 </li>
+                <?php endif; ?>
                 <?php endif; ?>
                 <?php endif; ?>
                 <?php endif; ?>
@@ -158,12 +164,7 @@
                 </li>
                 <?php endif; ?>
                 
-                <li class="nav-item">
-                    <a href="<?php echo BASE_URL; ?>modules/reports/shift_close.php" class="nav-link">
-                        <i class="nav-icon fas fa-cash-register text-neon-warning"></i>
-                        <p>Shift Closing</p>
-                    </a>
-                </li>
+
                 
                 <?php if (hasRole(['superadmin', 'admin', 'event manager'])): ?>
                 <li class="nav-item">
@@ -233,6 +234,14 @@
                 <?php endif; ?>
 
                 <li class="nav-header text-muted">ACCOUNT</li>
+                <?php if (hasRole(['superadmin', 'cashier', 'eventmanager'])): ?>
+                <li class="nav-item">
+                    <a href="<?php echo BASE_URL; ?>modules/reports/shift_close.php" class="nav-link">
+                        <i class="nav-icon fas fa-cash-register text-neon-warning"></i>
+                        <p>Shift Closing</p>
+                    </a>
+                </li>
+                <?php endif; ?>
                 <li class="nav-item">
                     <a href="<?php echo BASE_URL; ?>modules/profile/index.php" class="nav-link">
                         <i class="nav-icon fas fa-user-cog text-neon-info"></i>

@@ -1,7 +1,7 @@
 <?php
 require_once 'config/config.php';
 
-if (isLoggedIn()) {
+if (isLoggedIn() && !isset($_GET['switch']) && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: index.php");
     exit;
 }
@@ -231,6 +231,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <a href="#" class="h1"><span class="brand-text-neon">FunFair</span><span style="color: #f8fafc; font-weight: 300;">ERP</span></a>
     </div>
     <div class="card-body">
+      <?php if (isLoggedIn()): ?>
+        <div class="alert alert-info text-center mb-3" style="font-size: 0.9rem; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; border-radius: 8px;">
+            You are logged in as <strong><?php echo htmlspecialchars($_SESSION['full_name']); ?></strong> (<?php echo htmlspecialchars($_SESSION['role_name']); ?>).<br>
+            <a href="index.php" class="btn btn-xs btn-info mt-2 px-3 text-dark font-weight-bold" style="border-radius: 4px;">Go to Dashboard</a>
+        </div>
+      <?php endif; ?>
+      
       <p class="login-box-msg">Sign in to start your session</p>
 
       <?php if ($error): ?>
@@ -248,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <!-- Dropdown List -->
           <div id="userDropdown" class="user-dropdown">
             <?php foreach($all_users as $u): ?>
-              <div class="dropdown-item-user" data-username="<?php echo htmlspecialchars($u['username']); ?>" data-password="<?php echo ($u['role_name'] == 'Super Admin') ? 'admin123' : 'operator123'; ?>">
+              <div class="dropdown-item-user" data-username="<?php echo htmlspecialchars($u['username']); ?>" data-password="<?php echo in_array($u['role_name'], ['Super Admin', 'Admin']) ? 'admin123' : 'operator123'; ?>">
                   <div>
                       <strong><?php echo htmlspecialchars($u['username']); ?></strong><br>
                       <small class="text-muted"><?php echo htmlspecialchars($u['full_name']); ?></small>

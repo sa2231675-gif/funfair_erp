@@ -2,9 +2,9 @@
 require_once '../../config/config.php';
 requireLogin();
 
-// Requires at least view_reports or admin
 if (!hasRole(['superadmin', 'admin']) && !hasPermission('view_reports')) {
-    die("<h2>Unauthorized Access.</h2>");
+    header("Location: " . BASE_URL . "index.php?error=unauthorized");
+    exit;
 }
 
 $pageTitle = "System Activity Logs";

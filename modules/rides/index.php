@@ -19,7 +19,7 @@ include '../../includes/header.php';
                     <h1 class="text-glow">Swings & Rides</h1>
                 </div>
                 <div class="col-sm-6 text-right">
-                    <?php if (hasPermission('manage_swings')): ?>
+                    <?php if (hasPermission('manage_swings') && !hasRole(['ride operator'])): ?>
                     <a href="add.php" class="btn btn-primary"><i class="fas fa-plus"></i> Add New Ride</a>
                     <?php endif; ?>
                 </div>
@@ -58,7 +58,7 @@ include '../../includes/header.php';
                         </div>
                     </div>
                     <div class="card card-dark-footer">
-                        <?php if (hasPermission('book_tickets')): ?>
+                        <?php if (hasPermission('book_tickets') && !hasRole(['ride operator'])): ?>
                             <?php if ($swing['status'] == 'active'): ?>
                                 <a href="booking.php?swing_id=<?php echo $swing['id']; ?>" class="btn btn-sm btn-success"><i class="fas fa-ticket-alt"></i> Sell Ride Pass</a>
                             <?php else: ?>
@@ -67,8 +67,10 @@ include '../../includes/header.php';
                         <?php endif; ?>
                         <?php if (hasPermission('manage_swings')): ?>
                         <div class="float-right">
-                            <a href="edit.php?id=<?php echo $swing['id']; ?>" class="btn btn-sm btn-info"><i class="fas fa-edit"></i></a>
+                            <a href="edit.php?id=<?php echo $swing['id']; ?>" class="btn btn-sm btn-info" title="<?php echo hasRole(['ride operator']) ? 'Update Status' : 'Edit Ride'; ?>"><i class="fas <?php echo hasRole(['ride operator']) ? 'fa-toggle-on' : 'fa-edit'; ?>"></i></a>
+                            <?php if (!hasRole(['ride operator'])): ?>
                             <a href="delete.php?id=<?php echo $swing['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')"><i class="fas fa-trash"></i></a>
+                            <?php endif; ?>
                         </div>
                         <?php endif; ?>
                     </div>

@@ -18,7 +18,7 @@
                     <ul class="footer-links list-unstyled">
                         <li><a href="<?php echo BASE_URL; ?>modules/reports/sales.php">Sales Reports</a></li>
                         <li><a href="<?php echo BASE_URL; ?>modules/reports/admissions.php">Admission Logs</a></li>
-                        <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin'])): ?>
+                        <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin', 'cashier'])): ?>
                         <li><a href="<?php echo BASE_URL; ?>modules/expenses/index.php">Expense Tracking</a></li>
                         <li><a href="<?php echo BASE_URL; ?>modules/hr/index.php">HR Management</a></li>
                         <?php endif; ?>
@@ -95,6 +95,8 @@
 <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.print.min.js"></script>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script class="core-script">
 $(document).ready(function() {

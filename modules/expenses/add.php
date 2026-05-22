@@ -3,7 +3,7 @@ require_once '../../config/config.php';
 requireLogin();
 
 // Only Admin and above can record expenses
-if (!hasRole(['superadmin', 'admin'])) {
+if (!hasRole(['superadmin', 'admin', 'cashier'])) {
     header("Location: " . BASE_URL . "index.php?error=unauthorized");
     exit();
 }

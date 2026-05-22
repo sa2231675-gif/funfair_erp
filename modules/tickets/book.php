@@ -3,6 +3,11 @@ require_once '../../config/config.php';
 requireLogin();
 requirePermission('book_tickets');
 
+if (hasRole(['ride operator'])) {
+    header("Location: " . BASE_URL . "index.php?error=unauthorized");
+    exit;
+}
+
 $pageTitle = "Book Ticket";
 $events = [];
 $selected_event = null;

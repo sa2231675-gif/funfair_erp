@@ -1,6 +1,7 @@
 <?php
 require_once '../../config/config.php';
 requireLogin();
+requirePermission('manage_events');
 
 $pageTitle = "Add Event";
 $message = '';

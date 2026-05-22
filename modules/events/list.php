@@ -1,6 +1,7 @@
 <?php
 require_once '../../config/config.php';
 requireLogin();
+requireAnyPermission(['view_events', 'manage_events']);
 
 $pageTitle = "Upcoming Events";
 

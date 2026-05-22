@@ -2,6 +2,10 @@
 require_once '../../config/config.php';
 requireLogin();
 
+if (hasRole(['user/student'])) {
+    die("Unauthorized: Students cannot print tickets");
+}
+
 if (!isset($_GET['ids'])) {
     die("Ticket IDs required");
 }

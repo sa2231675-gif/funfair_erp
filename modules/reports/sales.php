@@ -4,7 +4,8 @@ requireLogin();
 requirePermission('view_reports');
 
 if (!hasRole(['superadmin', 'admin', 'event manager'])) {
-    die("<h2>Unauthorized Access.</h2>");
+    header("Location: " . BASE_URL . "index.php?error=unauthorized");
+    exit;
 }
 
 $date = $_GET['date'] ?? '';

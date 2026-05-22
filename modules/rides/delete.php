@@ -3,6 +3,11 @@ require_once '../../config/config.php';
 requireLogin();
 requirePermission('manage_swings');
 
+if (hasRole(['ride operator'])) {
+    header("Location: index.php?error=unauthorized");
+    exit;
+}
+
 if (isset($_GET['id'])) {
     $id = $_GET['id'];
     
