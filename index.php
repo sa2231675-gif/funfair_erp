@@ -163,61 +163,40 @@ include 'includes/header.php';
 
             <?php if (function_exists('hasRole') && hasRole(['superadmin', 'admin', 'event manager'])): ?>
             <div class="row mt-4">
-                <div class="col-md-6 mb-4">
-                    <div class="card-dark h-100 p-2">
-                        <div class="card-header border-0">
-                            <h3 class="card-title text-glow"><i class="fas fa-chart-pie mr-2 text-neon-primary"></i> Event vs Ride Revenue</h3>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="revenuePieChart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-4">
-                    <div class="card-dark h-100 p-2">
-                        <div class="card-header border-0">
-                            <h3 class="card-title text-glow"><i class="fas fa-chart-bar mr-2 text-neon-success"></i> Revenue (Last 7 Days)</h3>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="revenueBarChart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
 
-            <?php
-            $showEventTicketsChart = (hasPermission('book_tickets') || hasPermission('view_reports')) && !hasRole(['ride operator']);
-            $showTopRidesChart = (hasPermission('validate_rides') || hasPermission('manage_swings') || hasPermission('view_swings') || hasPermission('view_reports')) && !hasRole(['user/student']);
-            $chartsCount = ($showEventTicketsChart ? 1 : 0) + ($showTopRidesChart ? 1 : 0);
-            $chartColClass = ($chartsCount === 1) ? 'col-md-12' : 'col-md-6';
-            ?>
-            <?php if ($chartsCount > 0): ?>
-            <div class="row mt-4">
-                <?php if ($showEventTicketsChart): ?>
-                <div class="<?php echo $chartColClass; ?> mb-4">
+                <!-- CHART 1: Revenue & Expenses Trend + Event vs Ride Split -->
+                <div class="col-md-6 mb-4">
                     <div class="card-dark h-100 p-2">
-                        <div class="card-header border-0">
-                            <h3 class="card-title text-glow"><i class="fas fa-calendar-alt mr-2 text-neon-info"></i> Tickets Sold per Event</h3>
+                        <div class="card-header border-0 d-flex align-items-center justify-content-between">
+                            <h3 class="card-title text-glow mb-0"><i class="fas fa-chart-line mr-2 text-neon-success"></i> Revenue & Financial Overview</h3>
+                            <div style="display:flex;gap:10px;font-size:0.75rem;">
+                                <span style="color:#22d3ee"><i class="fas fa-circle mr-1"></i>Events Rev</span>
+                                <span style="color:#f472b6"><i class="fas fa-circle mr-1"></i>Rides Rev</span>
+                                <span style="color:#fb923c"><i class="fas fa-circle mr-1"></i>Expenses</span>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <canvas id="eventTicketsBarChart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                        <div class="card-body" style="position:relative;">
+                            <canvas id="combinedRevenueChart" style="min-height:300px;height:300px;max-height:300px;max-width:100%;"></canvas>
                         </div>
                     </div>
                 </div>
-                <?php endif; ?>
-                <?php if ($showTopRidesChart): ?>
-                <div class="<?php echo $chartColClass; ?> mb-4">
+
+                <!-- CHART 2: Tickets per Event + Top Rides Usage -->
+                <div class="col-md-6 mb-4">
                     <div class="card-dark h-100 p-2">
-                        <div class="card-header border-0">
-                            <h3 class="card-title text-glow"><i class="fas fa-horse mr-2 text-neon-warning"></i> Top 5 Used Rides</h3>
+                        <div class="card-header border-0 d-flex align-items-center justify-content-between">
+                            <h3 class="card-title text-glow mb-0"><i class="fas fa-chart-bar mr-2 text-neon-info"></i> Tickets & Rides Activity</h3>
+                            <div style="display:flex;gap:10px;font-size:0.75rem;">
+                                <span style="color:#22d3ee"><i class="fas fa-circle mr-1"></i>Event Tickets</span>
+                                <span style="color:#fbbf24"><i class="fas fa-circle mr-1"></i>Ride Usage</span>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <canvas id="topRidesDoughnutChart" style="min-height: 250px; height: 250px; max-height: 250px; max-width: 100%;"></canvas>
+                        <div class="card-body" style="position:relative;">
+                            <canvas id="combinedActivityChart" style="min-height:300px;height:300px;max-height:300px;max-width:100%;"></canvas>
                         </div>
                     </div>
                 </div>
-                <?php endif; ?>
+
             </div>
             <?php endif; ?>
 
@@ -368,143 +347,190 @@ while ($row = $stmt->fetch()) {
 <?php include 'includes/footer.php'; ?>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Neon Chart Colors
-    const neonCyan = '#22d3ee';
+    if (typeof Chart === 'undefined') return;
+
+    // === Neon Colors ===
+    const neonCyan    = '#22d3ee';
     const neonMagenta = '#f472b6';
-    const neonLime = '#a3e635';
-    const neonAmber = '#fbbf24';
-    const neonPurple = '#c084fc';
-    const textDarkGlow = '#cbd5e1';
-    const gridDark = 'rgba(255,255,255,0.05)';
+    const neonAmber   = '#fbbf24';
+    const neonLime    = '#a3e635';
+    const neonOrange  = '#fb923c';
+    const neonPurple  = '#c084fc';
+    const neonGreen   = '#34d399';
+    const textColor   = '#cbd5e1';
+    const gridColor   = 'rgba(255,255,255,0.05)';
 
-    // Global Chart Defaults for Dark Theme
-    if (typeof Chart !== 'undefined') {
-        Chart.defaults.color = textDarkGlow;
-        Chart.defaults.font.family = "'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
-    }
+    Chart.defaults.color = textColor;
+    Chart.defaults.font.family = "'Segoe UI', Roboto, Arial, sans-serif";
 
-    // Pie Chart
-    var pieChartCanvas = document.getElementById('revenuePieChart');
-    if (pieChartCanvas && typeof Chart !== 'undefined') {
-        new Chart(pieChartCanvas.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: ['Events Revenue', 'Rides Revenue'],
-                datasets: [{
-                    data: [<?php echo $eventRev; ?>, <?php echo $rideRev; ?>],
-                    backgroundColor: [neonCyan, neonMagenta],
-                    borderWidth: 0,
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                responsive: true,
-                plugins: {
-                    legend: { position: 'bottom', labels: { color: textDarkGlow } }
-                },
-                cutout: '75%'
-            }
-        });
-    }
+    // =============================================
+    // CHART 1: Combined Revenue & Financial Chart
+    // Stacked bar: Daily Event Revenue + Rides Revenue + Expenses Line
+    // =============================================
+    var c1 = document.getElementById('combinedRevenueChart');
+    if (c1) {
+        // We'll show 3 datasets on same axes:
+        // Bar1 = Daily Revenue breakdown (Event Rev portion)
+        // Bar2 = Rides Revenue portion
+        // Line = Expenses
+        // We already have $daily_rev (total), $daily_exp, $eventRev, $rideRev (totals)
+        // For daily split: approximate event/ride ratio applied to daily rev
+        var totalRev = <?php echo ($eventRev + $rideRev) ?: 1; ?>;
+        var eventRatio = <?php echo ($eventRev + $rideRev) > 0 ? round($eventRev / ($eventRev + $rideRev), 4) : 0.5; ?>;
+        var rideRatio  = 1 - eventRatio;
 
-    // Bar Chart
-    var barChartCanvas = document.getElementById('revenueBarChart');
-    if (barChartCanvas && typeof Chart !== 'undefined') {
-        new Chart(barChartCanvas.getContext('2d'), {
+        var dailyRevRaw = <?php echo json_encode($daily_rev); ?>;
+        var dailyExpRaw = <?php echo json_encode($daily_exp); ?>;
+        var dailyEventRev = dailyRevRaw.map(function(v){ return +(v * eventRatio).toFixed(0); });
+        var dailyRideRev  = dailyRevRaw.map(function(v){ return +(v * rideRatio).toFixed(0); });
+
+        new Chart(c1.getContext('2d'), {
             type: 'bar',
             data: {
                 labels: <?php echo json_encode($dates); ?>,
-                datasets: [{
-                    label: 'Revenue (Rs.)',
-                    backgroundColor: neonLime,
-                    borderRadius: 4,
-                    barPercentage: 0.6,
-                    data: <?php echo json_encode($daily_rev); ?>
-                }, {
-                    label: 'Expenses (Rs.)',
-                    backgroundColor: neonMagenta,
-                    borderRadius: 4,
-                    barPercentage: 0.6,
-                    data: <?php echo json_encode($daily_exp); ?>
-                }]
+                datasets: [
+                    {
+                        label: 'Events Revenue (Rs.)',
+                        data: dailyEventRev,
+                        backgroundColor: neonCyan,
+                        borderRadius: 5,
+                        stack: 'revenue',
+                        barPercentage: 0.65,
+                        order: 2
+                    },
+                    {
+                        label: 'Rides Revenue (Rs.)',
+                        data: dailyRideRev,
+                        backgroundColor: neonMagenta,
+                        borderRadius: 5,
+                        stack: 'revenue',
+                        barPercentage: 0.65,
+                        order: 2
+                    },
+                    {
+                        label: 'Expenses (Rs.)',
+                        data: dailyExpRaw,
+                        type: 'line',
+                        borderColor: neonOrange,
+                        backgroundColor: 'rgba(251,146,60,0.12)',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: neonOrange,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4,
+                        order: 1
+                    }
+                ]
             },
             options: {
                 maintainAspectRatio: false,
                 responsive: true,
-                plugins: { legend: { display: true, position: 'top', labels: { color: textDarkGlow } } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: gridDark },
-                        border: { display: false },
-                        ticks: { color: textDarkGlow }
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: textColor, boxWidth: 12, padding: 14 }
                     },
-                    x: {
-                        grid: { display: false },
-                        border: { display: false },
-                        ticks: { color: textDarkGlow }
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ' ' + ctx.dataset.label + ': Rs. ' + ctx.parsed.y.toLocaleString();
+                            }
+                        }
                     }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false }, ticks: { color: textColor } },
+                    y: { stacked: true, beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, callback: function(v){ return 'Rs.'+v.toLocaleString(); } } }
                 }
             }
         });
     }
 
-    // Event Tickets Bar Chart
-    var eventBarCanvas = document.getElementById('eventTicketsBarChart');
-    if (eventBarCanvas && typeof Chart !== 'undefined') {
-        new Chart(eventBarCanvas.getContext('2d'), {
+    // =============================================
+    // CHART 2: Tickets per Event + Top Rides Usage
+    // Combined grouped bar — shared label = top 5 names (events + rides merged)
+    // =============================================
+    var c2 = document.getElementById('combinedActivityChart');
+    if (c2) {
+        var eventNames  = <?php echo json_encode(array_values($eventNames)); ?>;
+        var eventCounts = <?php echo json_encode(array_values($eventTicketCounts)); ?>;
+        var rideNames   = <?php echo json_encode(array_values($rideNames)); ?>;
+        var rideCounts  = <?php echo json_encode(array_values($rideUsageCounts)); ?>;
+
+        // Merge all labels (max 5 each), pad shorter arrays with nulls
+        var allLabels = [];
+        var maxLen = Math.max(eventNames.length, rideNames.length);
+        for (var i = 0; i < maxLen; i++) {
+            var el = eventNames[i] ? eventNames[i].substring(0,14) + (eventNames[i].length>14?'…':'') : '';
+            var rl = rideNames[i]  ? rideNames[i].substring(0,14)  + (rideNames[i].length>14?'…':'')  : '';
+            allLabels.push('E: ' + (el||'—') + ' / R: ' + (rl||'—'));
+        }
+
+        // Pad arrays to same length
+        while (eventCounts.length < maxLen) eventCounts.push(0);
+        while (rideCounts.length  < maxLen) rideCounts.push(0);
+
+        new Chart(c2.getContext('2d'), {
             type: 'bar',
             data: {
-                labels: <?php echo json_encode($eventNames); ?>,
-                datasets: [{
-                    label: 'Tickets Sold',
-                    backgroundColor: neonCyan,
-                    borderRadius: 4,
-                    barPercentage: 0.6,
-                    data: <?php echo json_encode($eventTicketCounts); ?>
-                }]
+                labels: allLabels.length > 0 ? allLabels : ['No Data'],
+                datasets: [
+                    {
+                        label: 'Event Tickets Sold',
+                        data: eventCounts,
+                        backgroundColor: neonCyan,
+                        borderRadius: 5,
+                        barPercentage: 0.4,
+                        categoryPercentage: 0.75
+                    },
+                    {
+                        label: 'Ride Usage Count',
+                        data: rideCounts,
+                        backgroundColor: neonAmber,
+                        borderRadius: 5,
+                        barPercentage: 0.4,
+                        categoryPercentage: 0.75
+                    }
+                ]
             },
             options: {
                 maintainAspectRatio: false,
                 responsive: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: gridDark },
-                        border: { display: false },
-                        ticks: { precision: 0, color: textDarkGlow }
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: textColor, boxWidth: 12, padding: 14 }
                     },
+                    tooltip: {
+                        callbacks: {
+                            title: function(items) {
+                                // Show full names in tooltip
+                                var idx = items[0].dataIndex;
+                                var e = eventNames[idx] || 'N/A';
+                                var r = rideNames[idx]  || 'N/A';
+                                return 'Event: ' + e + '\nRide: ' + r;
+                            }
+                        }
+                    }
+                },
+                scales: {
                     x: {
                         grid: { display: false },
-                        border: { display: false },
-                        ticks: { color: textDarkGlow }
+                        ticks: {
+                            color: textColor,
+                            maxRotation: 30,
+                            font: { size: 10 }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridColor },
+                        ticks: { precision: 0, color: textColor }
                     }
                 }
-            }
-        });
-    }
-
-    // Top Rides Doughnut
-    var ridesDoughnutCanvas = document.getElementById('topRidesDoughnutChart');
-    if (ridesDoughnutCanvas && typeof Chart !== 'undefined') {
-        new Chart(ridesDoughnutCanvas.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: <?php echo json_encode($rideNames); ?>,
-                datasets: [{
-                    data: <?php echo json_encode($rideUsageCounts); ?>,
-                    backgroundColor: [neonAmber, neonMagenta, neonLime, neonPurple, neonCyan],
-                    borderWidth: 0,
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                responsive: true,
-                plugins: { legend: { position: 'bottom', labels: { color: textDarkGlow } } },
-                cutout: '75%'
             }
         });
     }

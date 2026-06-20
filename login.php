@@ -8,7 +8,7 @@ if (isLoggedIn() && !isset($_GET['switch']) && $_SERVER['REQUEST_METHOD'] !== 'P
 
 $error = '';
 
-// Fetch all active users to show in dropdown
+// Fetch all active users for dropdown
 $users_query = $pdo->query("SELECT u.username, u.full_name, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.status = 'active'");
 $all_users = $users_query->fetchAll(PDO::FETCH_ASSOC);
 
@@ -21,12 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = $stmt->fetch();
 
     if ($user && password_verify($password, $user['password'])) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
+        $_SESSION['user_id']   = $user['id'];
+        $_SESSION['username']  = $user['username'];
         $_SESSION['full_name'] = $user['full_name'];
-        $_SESSION['role_id'] = $user['role_id'];
+        $_SESSION['role_id']   = $user['role_id'];
         $_SESSION['role_name'] = $user['role_name'];
-        
         header("Location: index.php");
         exit;
     } else {
@@ -40,300 +39,249 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Login | <?php echo SITE_NAME; ?></title>
-
-  <!-- Google Font: Source Sans Pro -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Theme style -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan:    #00f5ff;
+      --purple:  #9333ea;
+      --pink:    #f472b6;
+      --dark:    #02020f;
+      --card-bg: rgba(6, 8, 30, 0.85);
+      --border:  rgba(0, 245, 255, 0.15);
+    }
+
+    body, html { height: 100%; font-family: 'Inter', sans-serif; background: var(--dark); overflow: hidden; }
+
+    /* Split Screen Layout */
+    .split-container { display: flex; height: 100vh; width: 100%; }
+
+    /* Left Side - Visuals */
+    .left-panel {
+      flex: 1.2;
+      position: relative;
+      background: radial-gradient(circle at center, #0a0a20 0%, #02020f 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #particles-js { position: absolute; width: 100%; height: 100%; z-index: 1; }
+
+    /* Spinning Ring Logo */
+    .logo-container { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; }
     
-    body.login-page {
-        background: #050510 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.05)"/></svg>') !important;
-        background-size: 50px 50px !important;
-        font-family: 'Inter', sans-serif !important;
-        position: relative;
-        overflow: hidden;
+    .rings {
+      position: relative;
+      width: 250px; height: 250px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 2rem;
     }
     
-    /* Neon glow effect in background */
-    body.login-page::before {
-        content: '';
-        position: absolute;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, rgba(56, 189, 248, 0.2) 0%, transparent 60%);
-        top: -100px;
-        right: -100px;
-        z-index: 0;
-        animation: pulse 4s infinite alternate;
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      animation: spin linear infinite;
     }
     
-    body.login-page::after {
-        content: '';
-        position: absolute;
-        width: 500px;
-        height: 500px;
-        background: radial-gradient(circle, rgba(129, 140, 248, 0.15) 0%, transparent 60%);
-        bottom: -150px;
-        left: -150px;
-        z-index: 0;
-        animation: pulse 5s infinite alternate-reverse;
+    .ring-1 { width: 100%; height: 100%; border-top-color: var(--cyan); border-left-color: var(--cyan); animation-duration: 4s; }
+    .ring-2 { width: 85%; height: 85%; border-right-color: var(--pink); border-bottom-color: var(--pink); animation-duration: 5s; animation-direction: reverse; }
+    .ring-3 { width: 70%; height: 70%; border-top-color: var(--purple); border-right-color: var(--purple); animation-duration: 3s; }
+    
+    .logo-img { width: 100px; z-index: 5; filter: drop-shadow(0 0 15px var(--cyan)); }
+    
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .brand-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      text-shadow: 0 0 20px rgba(0, 245, 255, 0.8), 0 0 40px rgba(0, 245, 255, 0.4);
+      z-index: 10;
     }
 
-    @keyframes pulse {
-        0% { transform: scale(1); opacity: 0.8; }
-        100% { transform: scale(1.1); opacity: 1; }
+    .brand-subtitle { color: #94a3b8; font-size: 1.2rem; margin-top: 10px; z-index: 10; font-weight: 300; letter-spacing: 1px; }
+
+    /* Right Side - Form */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(4, 5, 15, 0.95);
+      position: relative;
+      border-left: 1px solid var(--border);
+      box-shadow: -20px 0 50px rgba(0,0,0,0.5);
     }
 
-    .login-box { 
-        position: relative;
-        z-index: 1;
-        width: 400px;
+    .login-card {
+      width: 100%; max-width: 450px; padding: 3rem;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 0 20px rgba(0,245,255,0.05);
     }
 
-    .card {
-        background: rgba(20, 20, 35, 0.6) !important;
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2) !important;
-        border-radius: 20px !important;
-    }
+    .login-header { margin-bottom: 2.5rem; }
+    .login-header h2 { color: #fff; font-size: 2rem; font-weight: 700; margin-bottom: 8px; font-family: 'Orbitron', sans-serif; }
+    .login-header p { color: #94a3b8; font-size: 0.95rem; }
 
-    .card-header { 
-        background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%) !important; 
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-        padding-top: 2rem !important;
-        border-radius: 20px 20px 0 0 !important;
-    }
-
-    .brand-text-neon {
-        color: #ffffff !important;
-        text-shadow: 0 0 15px rgba(56, 189, 248, 0.6), 0 0 30px rgba(56, 189, 248, 0.3);
-        font-weight: 800;
-        letter-spacing: 1px;
-    }
-
+    .input-group { position: relative; margin-bottom: 1.5rem; }
+    
+    .input-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--cyan); font-size: 1.2rem; pointer-events: none; }
+    
     .form-control {
-        background: rgba(15, 23, 42, 0.6) !important;
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        color: #e2e8f0 !important;
-        border-radius: 8px 0 0 8px !important;
-        padding: 1.25rem 1rem !important;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1rem 1rem 1rem 3rem;
+      color: #fff;
+      font-size: 1rem;
+      transition: all 0.3s;
     }
+    
+    .form-control:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 15px rgba(0, 245, 255, 0.2); background: rgba(0, 0, 0, 0.8); }
 
-    .form-control:focus {
-        background: rgba(15, 23, 42, 0.9) !important;
-        border-color: #38bdf8 !important;
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.3) !important;
-        color: #ffffff !important;
+    .btn-login {
+      width: 100%; padding: 1.2rem;
+      background: linear-gradient(135deg, var(--cyan), #0284c7);
+      border: none; border-radius: 12px;
+      color: #000; font-weight: 800; font-size: 1.1rem;
+      text-transform: uppercase; letter-spacing: 2px;
+      cursor: pointer; transition: all 0.3s;
+      box-shadow: 0 10px 20px rgba(0, 245, 255, 0.3);
+      margin-top: 1rem;
     }
+    
+    .btn-login:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(0, 245, 255, 0.5); }
 
-    .input-group-text {
-        background: rgba(30, 41, 59, 0.6) !important;
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-left: none !important;
-        color: #94a3b8 !important;
-        border-radius: 0 8px 8px 0 !important;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%) !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-weight: 700 !important;
-        padding: 0.75rem !important;
-        transition: all 0.3s ease !important;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        color: #0f172a !important; /* Dark text for contrast against bright button */
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(56, 189, 248, 0.4) !important;
-    }
-
-    .login-box-msg {
-        color: #94a3b8 !important;
-        font-weight: 500;
-        margin-bottom: 1.5rem;
-    }
-
-    /* Custom Dropdown Styles */
+    /* Custom Dropdown */
     .user-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: rgba(15, 23, 42, 0.95);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        border-radius: 0 0 8px 8px;
-        margin-top: 2px;
-        max-height: 200px;
-        overflow-y: auto;
-        z-index: 1000;
-        display: none;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+      background: rgba(10, 12, 35, 0.95); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 12px;
+      max-height: 250px; overflow-y: auto; z-index: 1000; display: none; padding: 5px;
     }
     
-    /* Scrollbar styling for dropdown */
-    .user-dropdown::-webkit-scrollbar { width: 6px; }
-    .user-dropdown::-webkit-scrollbar-track { background: transparent; }
-    .user-dropdown::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.5); border-radius: 3px; }
-
-    .dropdown-item-user {
-        padding: 10px 15px;
-        color: #e2e8f0;
-        cursor: pointer;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: background 0.2s;
+    .dropdown-item {
+      padding: 12px 15px; color: #cbd5e1; cursor: pointer; border-radius: 8px;
+      display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;
     }
-
-    .dropdown-item-user:hover {
-        background: rgba(56, 189, 248, 0.15);
-        color: #fff;
+    .dropdown-item:hover { background: rgba(0, 245, 255, 0.1); color: #fff; transform: translateX(5px); }
+    
+    .role-badge {
+      font-size: 0.7rem; padding: 4px 8px; border-radius: 6px;
+      background: rgba(0, 245, 255, 0.15); color: var(--cyan); font-weight: 700;
     }
     
-    .dropdown-item-user:last-child {
-        border-bottom: none;
-    }
+    .alert { padding: 12px 15px; border-radius: 12px; margin-bottom: 1.5rem; font-size: 0.9rem; font-weight: 500; }
+    .alert-danger { background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); color: #f43f5e; }
+    
+    .register-link { text-align: center; margin-top: 2rem; color: #94a3b8; }
+    .register-link a { color: var(--cyan); text-decoration: none; font-weight: 600; transition: all 0.2s; }
+    .register-link a:hover { text-shadow: 0 0 10px var(--cyan); }
 
-    .user-role-badge {
-        font-size: 0.7rem;
-        padding: 2px 6px;
-        border-radius: 4px;
-        background: rgba(56, 189, 248, 0.2);
-        color: #38bdf8;
+    /* Responsive */
+    @media (max-width: 992px) {
+      .split-container { flex-direction: column; }
+      .left-panel { flex: 0.8; }
+      .right-panel { border-left: none; border-top: 1px solid var(--border); padding: 2rem; }
+      .brand-title { font-size: 2.5rem; }
+      .rings { width: 150px; height: 150px; }
+      .logo-img { width: 60px; }
     }
-
-    label { color: #e2e8f0 !important; font-weight: 600 !important; letter-spacing: 0.5px; }
   </style>
 </head>
-<body class="hold-transition login-page">
-<!-- Particles.js container -->
-<div id="particles-js" style="position: absolute; width: 100%; height: 100%; z-index: 0;"></div>
-<div class="login-box">
-  <div class="card card-outline card-primary">
-    <div class="card-header text-center">
-      <div class="mb-3">
-        <img src="assets/images/logo.png" alt="FunFair Logo" style="max-height: 80px; filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.3));">
+<body>
+
+<div class="split-container">
+  <div class="left-panel">
+    <div id="particles-js"></div>
+    <div class="logo-container">
+      <div class="rings">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
+        <img src="assets/images/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
       </div>
-      <a href="#" class="h1"><span class="brand-text-neon">FunFair</span><span style="color: #f8fafc; font-weight: 300;">ERP</span></a>
+      <h1 class="brand-title">FunFair</h1>
+      <p class="brand-subtitle">Enterprise Resource Planning</p>
     </div>
-    <div class="card-body">
-      <?php if (isLoggedIn()): ?>
-        <div class="alert alert-info text-center mb-3" style="font-size: 0.9rem; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; border-radius: 8px;">
-            You are logged in as <strong><?php echo htmlspecialchars($_SESSION['full_name']); ?></strong> (<?php echo htmlspecialchars($_SESSION['role_name']); ?>).<br>
-            <a href="index.php" class="btn btn-xs btn-info mt-2 px-3 text-dark font-weight-bold" style="border-radius: 4px;">Go to Dashboard</a>
-        </div>
-      <?php endif; ?>
-      
-      <p class="login-box-msg">Sign in to start your session</p>
+  </div>
+
+  <div class="right-panel">
+    <div class="login-card">
+      <div class="login-header">
+        <h2>Welcome Back</h2>
+        <p>Access your secure dashboard to manage operations.</p>
+      </div>
 
       <?php if ($error): ?>
-        <div class="alert alert-danger"><?php echo $error; ?></div>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-circle mr-2"></i> <?php echo $error; ?></div>
       <?php endif; ?>
 
-      <form action="" method="post" id="loginForm">
-        <div class="input-group mb-3" style="position: relative;">
-          <input type="text" name="username" id="usernameInput" class="form-control" placeholder="Username" autocomplete="off" required>
-          <div class="input-group-append">
-            <div class="input-group-text">
-              <span class="fas fa-user"></span>
-            </div>
-          </div>
-          <!-- Dropdown List -->
+      <form action="" method="post" autocomplete="off">
+        <div class="input-group">
+          <i class="fas fa-user input-icon"></i>
+          <input type="text" name="username" id="usernameInput" class="form-control" placeholder="Username" required>
+          
           <div id="userDropdown" class="user-dropdown">
             <?php foreach($all_users as $u): ?>
-              <div class="dropdown-item-user" data-username="<?php echo htmlspecialchars($u['username']); ?>" data-password="<?php echo in_array($u['role_name'], ['Super Admin', 'Admin']) ? 'admin123' : 'operator123'; ?>">
-                  <div>
-                      <strong><?php echo htmlspecialchars($u['username']); ?></strong><br>
-                      <small class="text-muted"><?php echo htmlspecialchars($u['full_name']); ?></small>
-                  </div>
-                  <span class="user-role-badge"><?php echo htmlspecialchars($u['role_name']); ?></span>
+              <div class="dropdown-item" data-username="<?php echo htmlspecialchars($u['username']); ?>" data-password="<?php echo in_array($u['role_name'], ['Super Admin', 'Admin']) ? 'admin123' : 'operator123'; ?>">
+                <div>
+                  <strong style="display:block;"><?php echo htmlspecialchars($u['username']); ?></strong>
+                  <small style="opacity:0.7;"><?php echo htmlspecialchars($u['full_name']); ?></small>
+                </div>
+                <span class="role-badge"><?php echo htmlspecialchars($u['role_name']); ?></span>
               </div>
             <?php endforeach; ?>
-            <?php if(empty($all_users)): ?>
-                <div class="dropdown-item-user text-muted" style="justify-content:center; pointer-events:none;">No active users found</div>
-            <?php endif; ?>
           </div>
         </div>
-        <div class="input-group mb-3">
-          <input type="password" name="password" id="passwordInput" class="form-control" placeholder="Password" required>
-          <div class="input-group-append">
-            <div class="input-group-text">
-              <span class="fas fa-lock"></span>
-            </div>
-          </div>
+
+        <div class="input-group">
+          <i class="fas fa-lock input-icon"></i>
+          <input type="password" name="password" id="passwordInput" class="form-control" placeholder="Password" autocomplete="new-password" required>
         </div>
-        <div class="row">
-          <div class="col-8">
-            <div class="icheck-primary">
-              <input type="checkbox" id="remember">
-              <label for="remember">Remember Me</label>
-            </div>
-          </div>
-          <!-- /.col -->
-          <div class="col-4">
-            <button type="submit" class="btn btn-primary btn-block">Sign In</button>
-          </div>
-          <!-- /.col -->
-        </div>
+
+        <button type="submit" class="btn-login">Authenticate</button>
       </form>
 
-      <p class="mb-1 mt-3 text-center">
-        <small>Default: admin / admin123</small>
-      </p>
-      <p class="mb-0 text-center mt-2">
-        <a href="register.php" class="text-info" style="font-weight: 500;">Register a new membership</a>
-      </p>
+      <div class="register-link">
+        New staff member? <br>
+        <a href="register.php">Register your account</a>
+      </div>
     </div>
-    <!-- /.card-body -->
   </div>
-  <!-- /.card -->
 </div>
-<!-- /.login-box -->
 
-<!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-<!-- Bootstrap 4 -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-<!-- AdminLTE App -->
-<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
-<!-- Particles.js -->
 <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 <script>
+  // Canvas Particles
   particlesJS("particles-js", {
     "particles": {
-      "number": { "value": 80, "density": { "enable": true, "value_area": 800 } },
-      "color": { "value": ["#38bdf8", "#818cf8", "#f8fafc"] },
+      "number": { "value": 100, "density": { "enable": true, "value_area": 800 } },
+      "color": { "value": ["#00f5ff", "#9333ea", "#f472b6"] },
       "shape": { "type": "circle" },
-      "opacity": { "value": 0.5, "random": true },
+      "opacity": { "value": 0.6, "random": true },
       "size": { "value": 3, "random": true },
-      "line_linked": { "enable": true, "distance": 150, "color": "#38bdf8", "opacity": 0.3, "width": 1 },
-      "move": { "enable": true, "speed": 2, "direction": "none", "random": false, "straight": false, "out_mode": "out", "bounce": false }
+      "line_linked": { "enable": true, "distance": 150, "color": "#00f5ff", "opacity": 0.2, "width": 1 },
+      "move": { "enable": true, "speed": 1.5, "direction": "none", "random": true, "straight": false, "out_mode": "out", "bounce": false }
     },
     "interactivity": {
       "detect_on": "canvas",
-      "events": {
-        "onhover": { "enable": true, "mode": "grab" },
-        "onclick": { "enable": true, "mode": "push" },
-        "resize": true
-      },
-      "modes": {
-        "grab": { "distance": 140, "line_linked": { "opacity": 1 } },
-        "push": { "particles_nb": 4 }
-      }
+      "events": { "onhover": { "enable": true, "mode": "grab" }, "resize": true },
+      "modes": { "grab": { "distance": 200, "line_linked": { "opacity": 0.6 } } }
     },
     "retina_detect": true
   });
@@ -342,58 +290,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $(document).ready(function() {
       const $input = $('#usernameInput');
       const $dropdown = $('#userDropdown');
-      const $items = $('.dropdown-item-user');
+      const $items = $('.dropdown-item');
       const $password = $('#passwordInput');
 
-      // Show dropdown on click/focus
-      $input.on('focus click', function(e) {
+      $input.on('focus click input', function(e) {
           e.stopPropagation();
           $dropdown.slideDown(200);
-          filterDropdown(); // Filter based on current text if any
-      });
-
-      // Filter logic on typing
-      $input.on('input', function() {
-          filterDropdown();
-      });
-
-      function filterDropdown() {
-          const val = $input.val().toLowerCase();
-          let hasVisible = false;
-          
+          const val = $(this).val().toLowerCase();
           $items.each(function() {
-              if ($(this).data('username')) {
-                 const username = $(this).data('username').toLowerCase();
-                 const fullname = $(this).find('small').text().toLowerCase();
-                 if (username.includes(val) || fullname.includes(val)) {
-                     $(this).show();
-                     hasVisible = true;
-                 } else {
-                     $(this).hide();
-                 }
-              }
+              const text = $(this).text().toLowerCase();
+              $(this).toggle(text.includes(val));
           });
-      }
-
-      // Handle item selection
-      $items.on('click', function(e) {
-          e.stopPropagation(); // prevent document click
-          if($(this).data('username')) {
-             $input.val($(this).data('username'));
-             
-             // Autofill password based on our common demo passwords (remove in real prod env)
-             const pass = $(this).data('password');
-             if(pass) {
-                 $password.val(pass);
-             } else {
-                 $password.val('operator123'); // fallback common demo password
-             }
-             
-             $dropdown.slideUp(200);
-          }
       });
 
-      // Close dropdown when clicking outside
+      $items.on('click', function(e) {
+          e.stopPropagation();
+          $input.val($(this).data('username'));
+          
+          const pass = $(this).data('password');
+          $password.val(pass ? pass : 'operator123');
+          
+          $dropdown.slideUp(200);
+      });
+
       $(document).on('click', function(e) {
           if (!$(e.target).closest('.input-group').length) {
               $dropdown.slideUp(200);

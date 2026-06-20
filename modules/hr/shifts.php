@@ -55,10 +55,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['assign_shift'])) {
     $start_time = '14:00:00';
     $end_time = '00:00:00';
 
-    $stmt = $pdo->prepare("INSERT INTO employee_shifts (employee_id, shift_date, start_time, end_time, status) VALUES (?, ?, ?, ?, 'scheduled')");
-    $stmt->execute([$employee_id, $shift_date, $start_time, $end_time]);
-    header("Location: shifts.php?success=assigned");
-    exit();
+    // Check if shift already exists
+    $check_stmt = $pdo->prepare("SELECT id FROM employee_shifts WHERE employee_id = ? AND shift_date = ?");
+    $check_stmt->execute([$employee_id, $shift_date]);
+    if ($check_stmt->rowCount() > 0) {
+        $error = "This employee already has a shift assigned for this date.";
+    } else {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO employee_shifts (employee_id, shift_date, start_time, end_time, status) VALUES (?, ?, ?, ?, 'scheduled')");
+            $stmt->execute([$employee_id, $shift_date, $start_time, $end_time]);
+            header("Location: shifts.php?date=" . urlencode($shift_date) . "&success=assigned");
+            exit();
+        } catch (PDOException $e) {
+            $error = "Database Error: " . $e->getMessage();
+        }
+    }
 }
 
 // Cancel Shift Logic
