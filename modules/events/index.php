@@ -28,6 +28,23 @@ include '../../includes/header.php';
     </section>
 
     <section class="content">
+        <?php if (isset($_GET['error']) && $_GET['error'] == 'tickets_sold'): ?>
+            <div class="alert alert-danger alert-dismissible">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <i class="fas fa-exclamation-triangle mr-2"></i> Is event ko delete nahi kia ja sakta kyunke is ke active tickets mojood hain!
+            </div>
+        <?php elseif (isset($_GET['error']) && $_GET['error'] == 'delete_failed'): ?>
+            <div class="alert alert-danger alert-dismissible">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <i class="fas fa-exclamation-triangle mr-2"></i> Event delete karne mein error aa gaya. Dobara try karein.
+            </div>
+        <?php endif; ?>
+        <?php if (isset($_GET['success']) && $_GET['success'] == 'event_deleted'): ?>
+            <div class="alert alert-success alert-dismissible">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <i class="fas fa-check-circle mr-2"></i> Event successfully delete ho gaya!
+            </div>
+        <?php endif; ?>
         <div class="card card-dark card-outline card-danger">
             <div class="card-body p-0">
                 <table class="table table-dark-custom table-hover">
